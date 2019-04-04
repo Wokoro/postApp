@@ -1,13 +1,28 @@
 window.addEventListener("DOMContentLoaded", ()=>{
-    let starElements = Array.from(document.querySelectorAll(".posts .fa-star"));
-    let favoritePostHolder = document.querySelector("div[class='favoritePosts']");
-    let postHolder = document.querySelector(".postHolder");
     
-    addListenerToStarElems(starElements);
-    
-    let updateUI = ()=>{
+    let starElements = Array.from(document.querySelectorAll(".posts .fa-star")),
+        favoritePostHolder = document.querySelector("div[class='favoritePosts']"),
+        postHolder = document.querySelector(".postHolder");
+   
+    initialize();
+        
+    function initialize(){
+        if (isLocalStorageEnabled()){
+            addClickListenerToStarElems(starElements);
+            displayUI();
+            displayFavorites();
+        }
+    }
+
+    function addClickListenerToStarElems(elems){
+        elems.forEach((elem)=>{
+            elem.addEventListener("click", (event)=>{togglePostOption(event.target)})
+        })
+    }
+
+    function displayUI(){
         let postsHolder = document.querySelector(".posts");
-        let favorites = getStoredItems('favorite');
+        let favorites = getStoredItems('favorites')? JSON.parse(getStoredItems('favorites')):[] ;
         if(favorites){
           favorites.map((post)=>{
             let starIcon = postsHolder.querySelector(`#${post.id} .fa-star`);
@@ -17,41 +32,41 @@ window.addEventListener("DOMContentLoaded", ()=>{
         }
     }
 
-    let addToFavoritePosts = (post)=>{
+    function addToFavoritePosts(post){
         let postObj = createPostObject(post);
-        console.log(postObj)
 
         let starIcon = post.querySelector(".fa-star");
         let clonedPostHolder = postHolder.cloneNode(true);
         
         starIcon.classList = "fas fa-star";
-        addToStorage("favorites", post);
-    
+          
         clonedPostHolder.id = postObj.id;
         clonedPostHolder.querySelector(".title").textContent = postObj.name;
         clonedPostHolder.querySelector(".description").textContent = postObj.description;
+        clonedPostHolder.querySelector(".fa-star").remove();
         clonedPostHolder.classList.remove("hide");
         favoritePostHolder.appendChild(clonedPostHolder);
+
+        addToStorage("favorites", postObj);
     }
 
     let removeFromFavoritePosts = (post)=>{
         let starIcon = post.querySelector(".fa-star");
         starIcon.classList = "far fa-star";
-       // removeFromStorage("favorites", post);
+        
         favoritePostHolder.querySelector(`#${post.id}`).remove();
+        
+        removeFromStorage("favorites", post);
     }
 
-    let displayFavorites = ()=>{
+    function displayFavorites(){
         if(getStoredItems("favorites")){
-            getStoredItems("favorites").map((post)=>{
-                let postHolder = document.querySelector(".postHolder").cloneNode(true),
-                    postTitle = postHolder.querySelector(".title"),
-                    postDescription = postHolder.querySelector(".description");
-                
-                postHolder.id = `post${post.id}`;
-                postTitle = post.name;
-                postDescription = post.description;
-                postHolder.classList.remove("postHolder");
+            JSON.parse(getStoredItems("favorites")).map((post)=>{
+                let postHolder = document.querySelector(".postHolder").cloneNode(true);
+                postHolder.id = `${post.id}`;
+                postHolder.querySelector(".title").textContent = post.name;
+                postHolder.querySelector(".description").textContent = post.description;
+                postHolder.classList.remove("postHolder",  "hide");
                 favoritePostHolder.appendChild(postHolder);
             })
         }
@@ -60,29 +75,30 @@ window.addEventListener("DOMContentLoaded", ()=>{
     // HELPER FUNCTIONS
     function addToStorage (key, post){
         if(getStoredItems(key)){
-            alert(getStoredItems(key))
             let favorites = JSON.parse(getStoredItems(key))
-            favorites.push(createPostObject(post));
-            storeItem("favorites", favorites);
+            favorites.push(post);
+            storeItem("favorites", JSON.stringify(favorites));
             return;
         }
-        storeItem("favorites", post);
+        storeItem("favorites", `[${JSON.stringify(post)}]`);
+        
     }
 
     function removeFromStorage(storageName, post){
-        let [postId = id] = createPostObject(post);
-        let storedFavorites = JSON.parse(getStoredItems(storageName))
-        let favoritePosts = storedFavorites.filter((postElem)=>{postElem.id == postId ? true : false});
-        storeItem(storageName, favoritePosts);
+        let {id} = createPostObject(post),
+            storedFavorites = JSON.parse(getStoredItems(storageName)),
+            favoritePosts = storedFavorites.filter((postElem)=>{return postElem.id == id ? false : true});
+
+        storeItem(storageName, JSON.stringify(favoritePosts));
     }
     
     function isLocalStorageEnabled(){ return window.localStorage ? true : false}
 
     function getStoredItems(storageName){ 
-        alert(localStorage.getItem(storageName))
+        return localStorage.getItem(storageName)
     }
 
-    function storeItem (storageName, val){ localStorage.setItem(storageName, JSON.stringify(val)) }
+    function storeItem (storageName, val){ localStorage.setItem(storageName, val) }
 
     function createPostObject(post){
         return {
@@ -90,12 +106,6 @@ window.addEventListener("DOMContentLoaded", ()=>{
           "name": post.querySelector('.title').textContent,
           "description": post.querySelector(".description").textContent
         }
-    }
-
-    function addListenerToStarElems(elems){
-        elems.forEach((elem)=>{
-            elem.addEventListener("click", (event)=>{togglePostOption(event.target)})
-        })
     }
 
     function togglePostOption(elem){
